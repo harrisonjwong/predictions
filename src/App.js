@@ -15,7 +15,7 @@ export default class App extends React.Component {
     this.apiKey = `eb4cde2daae74dcfbbf324987283b2d4`;
     this.state = {
       predictions: [],
-      route: "Green-B,Green-C,Green-D,Green-E",
+      route: "Green-D",
       station: "place-boyls"
     };
     this.getPredictions(this.state.station, this.state.route);

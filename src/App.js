@@ -13,7 +13,11 @@ export default class App extends React.Component {
   constructor() {
     super();
     this.apiKey = `eb4cde2daae74dcfbbf324987283b2d4`;
-    this.state = { predictions: [], route: "Green-B", station: "place-boyls" };
+    this.state = {
+      predictions: [],
+      route: "Green-B,Green-C,Green-D,Green-E",
+      station: "place-boyls"
+    };
     this.getPredictions(this.state.station, this.state.route);
     this.destinations = {
       "Green-B": { outbound: "Boston College", inbound: "Park Street" },
@@ -47,8 +51,10 @@ export default class App extends React.Component {
                     <TableRow key={row.relationships.trip.data.id}>
                       <TableCell align="right">
                         {row.attributes.direction_id === 0
-                          ? this.destinations[this.state.route].outbound
-                          : this.destinations[this.state.route].inbound}
+                          ? this.destinations[row.relationships.route.data.id]
+                              .outbound
+                          : this.destinations[row.relationships.route.data.id]
+                              .inbound}
                       </TableCell>
                       <TableCell align="right">
                         {this.getMinSec(new Date(row.attributes.arrival_time))}
@@ -59,13 +65,13 @@ export default class App extends React.Component {
                         )}
                       </TableCell>
                       <TableCell align="right">
-                        {JSON.stringify(row.information)}
+                        {row.information ? row.information.vehicleNumber : ""}
                       </TableCell>
                       <TableCell align="right">
-                        {row.attributes.direction_id}
+                        {row.information ? row.information.status : ""}
                       </TableCell>
                       <TableCell align="right">
-                        {row.attributes.direction_id}
+                        {row.information ? row.information.currentLocation : ""}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -115,14 +121,19 @@ export default class App extends React.Component {
           resultStop.data.data.attributes.description;
       }
       prediction.information = information;
-      console.log(information);
+      this.setState({ predictions: predictions });
     });
     console.log(predictions);
-    this.setState({ predictions: predictions });
+    // this.setState({ predictions: predictions });
   }
 
   getMinSec(date) {
-    const absoluteTime = new Date(date - Date.now());
+    const absoluteEpoch = date - Date.now();
+    if (absoluteEpoch < 0) {
+      return `Departing (${date.toLocaleTimeString()})`;
+    }
+    const absoluteTime = new Date(absoluteEpoch);
+    // console.log(absoluteTime);
     const minutes = absoluteTime.getMinutes();
     const rawSeconds = `${absoluteTime.getSeconds()}`;
     const seconds = rawSeconds.padStart(2, "0");

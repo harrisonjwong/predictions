@@ -1,26 +1,147 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import logo from "./logo.svg";
+import axios from "axios";
+import Table from "@material-ui/core/Table";
+import TableBody from "@material-ui/core/TableBody";
+import TableCell from "@material-ui/core/TableCell";
+import TableHead from "@material-ui/core/TableHead";
+import TableRow from "@material-ui/core/TableRow";
+import Paper from "@material-ui/core/Paper";
+import "./App.css";
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+export default class App extends React.Component {
+  constructor() {
+    super();
+    this.apiKey = `eb4cde2daae74dcfbbf324987283b2d4`;
+    this.state = { predictions: [], route: "Green-B", station: "place-boyls" };
+    this.getPredictions(this.state.station, this.state.route);
+    this.destinations = {
+      "Green-B": { outbound: "Boston College", inbound: "Park Street" },
+      "Green-C": { outbound: "Cleveland Circle", inbound: "North Station" },
+      "Green-D": { outbound: "Riverside", inbound: "Government Center" },
+      "Green-E": { outbound: "Heath Street", inbound: "Lechmere" }
+    };
+  }
+  componentDidMount() {}
+
+  render() {
+    return (
+      <div className="App">
+        <header className="App-header">
+          {this.state.station}
+          <div className="predictions">
+            <Paper>
+              <Table className="table" aria-label="simple table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell align="right">Destination</TableCell>
+                    <TableCell align="right">Arrival</TableCell>
+                    <TableCell align="right">Departure</TableCell>
+                    <TableCell align="right">Vehicle</TableCell>
+                    <TableCell align="right">Status</TableCell>
+                    <TableCell align="right">Current Location</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {this.state.predictions.map(row => (
+                    <TableRow key={row.relationships.trip.data.id}>
+                      <TableCell align="right">
+                        {row.attributes.direction_id === 0
+                          ? this.destinations[this.state.route].outbound
+                          : this.destinations[this.state.route].inbound}
+                      </TableCell>
+                      <TableCell align="right">
+                        {this.getMinSec(new Date(row.attributes.arrival_time))}
+                      </TableCell>
+                      <TableCell align="right">
+                        {this.getMinSec(
+                          new Date(row.attributes.departure_time)
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        {JSON.stringify(row.information)}
+                      </TableCell>
+                      <TableCell align="right">
+                        {row.attributes.direction_id}
+                      </TableCell>
+                      <TableCell align="right">
+                        {row.attributes.direction_id}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Paper>
+          </div>
+        </header>
+      </div>
+    );
+  }
+
+  async getPredictions(station, route) {
+    const url = `https://api-v3.mbta.com/predictions?api_key=${this.apiKey}&filter%5Bstop%5D=${station}&filter%5Broute%5D=${route}`;
+    const queryResult = await axios.get(url);
+    console.log(queryResult);
+    const predictions = queryResult.data.data;
+
+    // console.log(predictions);
+    predictions.forEach(async prediction => {
+      const information = {
+        vehicleNumber: "unknown",
+        status: "",
+        currentLocation: ""
+      };
+
+      // console.log(prediction.status);
+      const vehicle = prediction.relationships.vehicle.data;
+      // console.log(vehicle);
+      if (vehicle) {
+        const vehicleUrl = `https://api-v3.mbta.com/vehicles/${vehicle.id}?api_key=${this.apiKey}`;
+        const resultVehicle = await axios.get(vehicleUrl);
+        // console.log(resultVehicle);
+        information.vehicleNumber = resultVehicle.data.data.attributes.label;
+        information.status = prediction.status
+          ? `${prediction.status} : ${resultVehicle.data.data.attributes.current_status}`
+          : resultVehicle.data.data.attributes.current_status;
+        // console.log(resultVehicle.data.data.attributes.label);
+        // console.log(resultVehicle.data.data.attributes.current_status);
+        // console.log(resultVehicle.data.data.relationships.stop.data.id);
+        const stop = resultVehicle.data.data.relationships.stop.data.id;
+        const stopUrl = `https://api-v3.mbta.com/stops/${stop}?api_key=${this.apiKey}`;
+        const resultStop = await axios.get(stopUrl);
+        // console.log(resultStop);
+        // console.log(resultStop.data.data.attributes.description);
+        information.currentLocation =
+          resultStop.data.data.attributes.description;
+      }
+      prediction.information = information;
+      console.log(information);
+    });
+    console.log(predictions);
+    this.setState({ predictions: predictions });
+  }
+
+  getMinSec(date) {
+    const absoluteTime = new Date(date - Date.now());
+    const minutes = absoluteTime.getMinutes();
+    const rawSeconds = `${absoluteTime.getSeconds()}`;
+    const seconds = rawSeconds.padStart(2, "0");
+    return `${minutes}:${seconds} (${date.toLocaleTimeString()})`;
+  }
+
+  async getVehicleNumber(vehicle) {
+    if (vehicle === null) {
+      return "unknown";
+    } else {
+      const url = `https://api-v3.mbta.com/vehicles/${vehicle.id}`;
+      const result = await axios.get(url);
+      console.log(result);
+      return JSON.stringify(result);
+    }
+  }
 }
 
-export default App;
+/*
+// prediction.attributes.direction_id === 0 // ? "Riverside" // :
+// "Government Center"
+*/
